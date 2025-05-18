@@ -7,8 +7,6 @@ batch_size: 60
 num_points: 10000
 fix_seed: False
 seed: 0
-use_cia: False
-use_linear: False
 negative_sampling: "n_squared"
 # negative_sampling: "n"
 model:
@@ -20,20 +18,11 @@ model:
   embedding_channel: 1024
   voxel_size: 0.02
 
-pretrained_clip:
-  name: CLIPAdapter
-  ratio: 0.2
-  c_in: 1280
-  path: exp/ShapeNet_CIA/ckpt/latest.pt
-
-pretrained_model:
-  path: exp/shapenet_final_pointbert/ckpt/best_modelnet40_overall.pt
-
 training:
   use_openclip_optimizer_scheduler: True
   scheduler: "cosine"
-  max_epoch: 50
-  test_epoch: 10
+  max_epoch: 200
+  test_epoch: 70
   lr: 0.00015
   lr_decay: 30
   warmup_epoch: 10
@@ -53,14 +42,11 @@ training:
   loss_type: triple
   alpha: 1
   beta: 0.1
-  image_branch_in_dim: 512
-  text_branch_in_dim: 512
-  image_branch_hidden: 1024
-  text_branch_hidden: 1024
-  image_branch_out_dim: 1280
-  text_branch_out_dim: 1280
-  text_branch_dropout: 0.2
-  image_branch_dropout: 0.5
+  mlp_type: mlp_me
+  pc_in_dim: 512
+  pc_hidden_dim: 1024
+  pc_out_dim: 1280
+  pc_dropout: 0.5
   activate: gelu
 
 dataset:

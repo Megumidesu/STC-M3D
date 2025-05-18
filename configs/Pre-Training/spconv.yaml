@@ -1,5 +1,5 @@
 project_name: 3D_CLIP
-exp_name: few_shot
+exp_name: zero_shot
 clip_embed_dim: 1280
 clip_embed_version: OpenCLIP
 trainer: 'tamm_trainer'
@@ -7,7 +7,6 @@ batch_size: 90
 num_points: 10000
 fix_seed: False
 seed: 0
-use_cia: False
 use_linear: True
 negative_sampling: "n_squared"
 model:
@@ -17,20 +16,11 @@ model:
   embedding_channel: 1024
   voxel_size: 0.02
 
-pretrained_clip:
-  name: CLIPAdapter
-  ratio: 0.2
-  c_in: 1280
-  path: exp/train_clip_adapter@20230914-212547/ckpt/epoch_23.pt
-
-pretrained_model:
-  path: exp/train_clip_adapter@20230914-212547/ckpt/epoch_23.pt
-
 training:
   use_openclip_optimizer_scheduler: True
   scheduler: 'cosine'
   max_epoch: 200
-  test_epoch: 100
+  test_epoch: 70
   lr: 0.00015
   lr_decay: 30
   warmup_epoch: 10
@@ -48,15 +38,13 @@ training:
   use_mask: False
   mask_threshold: 0.1
   loss_type: triple
+  alpha: 1
+  beta: 0.1
   mlp_type: mlp_me
-  image_branch_in_dim: 1280
-  text_branch_in_dim: 1280
-  image_branch_hidden: 1280
-  text_branch_hidden: 1280
-  image_branch_out_dim: 1280
-  text_branch_out_dim: 1280
-  text_branch_dropout: 0.2
-  image_branch_dropout: 0.5
+  pc_in_dim: 512
+  pc_hidden_dim: 1024
+  pc_out_dim: 1280
+  pc_dropout: 0.5
   activate: gelu
 
 
@@ -97,10 +85,6 @@ modelnet40:
   y_up: True
   normalize: True
   use_color: True
-
-  #few-shot
-  num_categories: 5
-  shots_per_class: 10 
 
 objaverse_lvis:
   split: ../meta_data/split/lvis.json

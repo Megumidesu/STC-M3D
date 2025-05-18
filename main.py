@@ -15,7 +15,7 @@ import data
 import models
 from models.LogitScaleNetwork import LogitScaleNetwork
 from models.view_module import ViewWeightsModule, ViewFusionModule
-from trainers.mlp import MLP
+from trainers.mlp import MLP, MLP_ME
 from trainers.stc_m3d_trainer import STC_M3D_Trainer
 from utils.logger import setup_logging
 from utils.misc import load_config, dump_config
@@ -80,23 +80,28 @@ def main(cli_args, extras):
 
         logit_scale = LogitScaleNetwork(config.training.logit_scale_init).cuda(rank)
         logit_scale = DDP(logit_scale, device_ids=[rank], output_device=rank, find_unused_parameters=False)
-
-        pc_adapter = MLP(in_features=config.training.image_branch_in_dim,
-                                hidden_features=config.training.image_branch_hidden,
-                                out_features=config.training.image_branch_out_dim,
-                                drop=config.training.image_branch_dropout,
-                                activate=config.training.activate).cuda(rank)
-        pc_adapter = DDP(pc_adapter, device_ids=[rank], output_device=rank, find_unused_parameters=False)
-
         
-        train_loader = data.make(config, 'train', rank, num_gpus)
-
+        mlp_type = config.training.get('mlp_type')
+        if mlp_type == 'mlp':
+            pc_adapter = MLP(in_features=config.training.pc_in_dim,
+                                hidden_features=config.training.pc_hidden_dim,
+                                out_features=config.training.pc_out_dim,
+                                drop=config.training.pc_dropout,
+                                activate=config.training.activate).cuda(rank)
+        elif mlp_type == 'mlp_me':
+            pc_adapter = MLP_ME(in_features=config.training.pc_in_dim,
+                                hidden_features=config.training.pc_hidden_dim,
+                                out_features=config.training.pc_out_dim,
+                                drop=config.training.pc_dropout).cuda(rank)
+        pc_adapter = DDP(pc_adapter, device_ids=[rank], output_device=rank, find_unused_parameters=False)
 
         view_weights_module = ViewWeightsModule(config.clip_embed_dim).cuda(rank)
         view_weights_module = DDP(view_weights_module, device_ids=[rank], output_device=rank, find_unused_parameters=False)
         
         view_fusion_module = ViewFusionModule(config.clip_embed_dim).cuda(rank)
         view_fusion_module = DDP(view_fusion_module, device_ids=[rank], output_device=rank, find_unused_parameters=False)
+
+        train_loader = data.make(config, 'train', rank, num_gpus)
 
         modelnet40_loader = data.make_modelnet40test(config)
         objaverse_lvis_loader = data.make_objaverse_lvis(config)
