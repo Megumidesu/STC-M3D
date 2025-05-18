@@ -42,7 +42,7 @@ training:
   loss_type: triple
   alpha: 1
   beta: 0.1
-  mlp_type: mlp_me
+  mlp_type: mlp
   pc_in_dim: 512
   pc_hidden_dim: 1024
   pc_out_dim: 1280
