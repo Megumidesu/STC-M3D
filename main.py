@@ -103,7 +103,6 @@ def main(cli_args, extras):
 
         train_loader = data.make(config, 'train', rank, num_gpus)
 
-        modelnet40_loader = data.make_modelnet40test(config)
         objaverse_lvis_loader = data.make_objaverse_lvis(config)
         scanobjectnn_loader = data.make_scanobjectnntest(config)
 
@@ -137,7 +136,7 @@ def main(cli_args, extras):
         if config.trainer == "STC_M3D_trainer":
             trainer = STC_M3D_Trainer(rank, config, model, logit_scale,
                                                       pc_adapter, view_weights_module, view_fusion_module, optimizer, scheduler, \
-                                                      train_loader, modelnet40_loader, objaverse_lvis_loader,
+                                                      train_loader, objaverse_lvis_loader,
                                                       scanobjectnn_loader)
         else:
             raise NotImplementedError("Trainer {} not implemented".format(config.trainer))

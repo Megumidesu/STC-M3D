@@ -21,8 +21,8 @@ model:
 training:
   use_openclip_optimizer_scheduler: True
   scheduler: "cosine"
-  max_epoch: 200
-  test_epoch: 70
+  max_epoch: 100
+  test_epoch: 50
   lr: 0.00015
   lr_decay: 30
   warmup_epoch: 10
@@ -55,7 +55,7 @@ dataset:
   num_texts: 1
   use_fusion: True
   prefetch_factor: 4
-  train_split: ../meta_data/split/ablation/train_shapenet_objaverse.json
+  train_split: ../meta_data/split/ablation/train_shapenet_only.json
   train_partial: -1
   use_openshape_feature: True
   num_points: ${num_points}
@@ -74,23 +74,6 @@ dataset:
   use_text_filtering: True
   use_prompt_engineering: True
   gpt4_filtering_path: ../meta_data/gpt4_filtering.json
-
-modelnet40:
-  test_split: ../meta_data/modelnet40/test_split.json
-  train_pc: ./data/modelnet40_train/pc.npy
-  train_img: ./data/modelnet40_train/img_feats.npy
-  train_name: ./data/modelnet40_train/train_name.txt
-  test_pc: ../meta_data/modelnet40/test_pc.npy
-  test_img: ../meta_data/modelnet40/img_feats.npy
-  num_points: ${num_points}
-  num_workers: 10
-  test_batch_size: ${batch_size}
-  clip_feat_path: ../meta_data/modelnet40/cat_name_pt_feat.npy
-  y_up: True
-  normalize: True
-  use_color: True
-  num_categories: 5
-  shots_per_class: 10
 
 objaverse_lvis:
   split: ../meta_data/split/lvis.json

@@ -17,8 +17,6 @@ from utils.data import random_rotate_z, normalize_pc, augment_pc
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-
-
 class Four(Dataset):
     def __init__(self, config, phase):
         self.phase = phase
@@ -126,12 +124,7 @@ class Four(Dataset):
                 text_feat.append(
                     data["retrieval_text_feat"][idx]["original"])  # no prompt engineering for retrieval text
 
-        # if len(text_feat) < 1:
-        #     print(f"{dataset} len：{len(text_feat)}  datapath：{data_path}  id：{data['id']}")
-        # else:
-        #     text_feat = random.sample(text_feat, self.num_texts)
         if len(text_feat) >= 2:
-            # text_feat = random.sample(text_feat, self.num_texts)
             text_feat = text_feat[1]
         elif len(text_feat) < 2:
             text_feat = text_feat[0]
@@ -240,102 +233,6 @@ def make(config, phase, rank, world_size):
     else:
         raise NotImplementedError("Dataset %s not supported." % config.dataset.name)
     return data_loader
-
-
-class ModelNet40Test(Dataset):
-    def __init__(self, config):
-        self.config = config
-        self.split = json.load(open(config.modelnet40.test_split, "r"))
-        self.pcs = np.load(config.modelnet40.test_pc, allow_pickle=True)
-        self.img_feats = np.load(config.modelnet40.test_img, allow_pickle=True)
-        self.clip_embed_dim = config.clip_embed_dim
-        self.num_points = config.modelnet40.num_points
-        self.use_color = config.dataset.use_color
-        self.y_up = config.modelnet40.y_up
-        clip_feat = np.load(config.modelnet40.clip_feat_path, allow_pickle=True).item()
-        self.categories = list(clip_feat.keys())
-        self.clip_cat_feat = []
-        self.category2idx = {}
-        if config.clip_embed_version == "OpenCLIP":
-            for i, category in enumerate(self.categories):
-                self.category2idx[category] = i
-                self.clip_cat_feat.append(clip_feat[category]["open_clip_text_feat"])
-        else:
-            for i, category in enumerate(self.categories):
-                self.category2idx[category] = i
-                self.clip_cat_feat.append(clip_feat[category]["prompt_avg"])
-        self.clip_cat_feat = np.concatenate(self.clip_cat_feat, axis=0)
-
-        logging.info("ModelNet40Test: %d samples" % len(self.split))
-        logging.info("----clip feature shape: %s" % str(self.clip_cat_feat.shape))
-
-    def __getitem__(self, index: int):
-        pc = copy.deepcopy(self.pcs[index])
-        n = pc['xyz'].shape[0]
-        # if n != self.num_points:
-        # idx = random.sample(range(n), self.num_points)
-        xyz = pc['xyz'][: self.num_points]
-        rgb = pc['rgb'][: self.num_points]
-        rgb = rgb / 255.0  # 100, scale to 0.4 to make it consistent with the training data
-        if self.y_up:
-            # swap y and z axis
-            xyz[:, [1, 2]] = xyz[:, [2, 1]]
-
-        xyz = normalize_pc(xyz)
-
-        if self.use_color:
-            features = np.concatenate([xyz, rgb], axis=1)
-        else:
-            features = xyz
-
-        assert not np.isnan(xyz).any()
-
-        if self.config.dataset.use_fusion:
-            img_feat = torch.from_numpy(self.img_feats[index].reshape(-1, 12, self.clip_embed_dim)).type(torch.float32)
-            # img_feat = img_feat.max(dim=1)[0]
-        else:
-            img_index = np.random.randint(12)
-            img_feat = self.img_feats[index][img_index * self.clip_embed_dim: (img_index + 1) * self.clip_embed_dim]
-            img_feat = torch.from_numpy(img_feat).type(torch.float32)
-
-        return {
-            "xyz": torch.from_numpy(xyz).type(torch.float32),
-            "features": torch.from_numpy(features).type(torch.float32),
-            "img_feat": img_feat.reshape(-1),
-            "name": self.split[index]["name"],
-            "category": self.category2idx[self.split[index]["category"]],
-        }
-
-    def __len__(self):
-        return len(self.split)
-
-
-def minkowski_modelnet40_collate_fn(list_data):
-    return {
-        "xyz": ME.utils.batched_coordinates([data["xyz"] for data in list_data], dtype=torch.float32),
-        "features": torch.cat([data["features"] for data in list_data], dim=0),
-        "img_feat": [data["img_feat"] for data in list_data],
-        "xyz_dense": torch.stack([data["xyz"] for data in list_data]).float(),
-        "features_dense": torch.stack([data["features"] for data in list_data]),
-        "name": [data["name"] for data in list_data],
-        "category": torch.tensor([data["category"] for data in list_data], dtype=torch.int32),
-    }
-
-
-def make_modelnet40test(config):
-    dataset = ModelNet40Test(config)
-    sampler = torch.utils.data.distributed.DistributedSampler(dataset)
-    data_loader = DataLoader(
-        dataset, \
-        num_workers=config.modelnet40.num_workers, \
-        collate_fn=minkowski_modelnet40_collate_fn, \
-        batch_size=config.modelnet40.test_batch_size, \
-        pin_memory=True, \
-        shuffle=False,
-        sampler=sampler
-    )
-    return data_loader
-
 
 class ObjaverseLVIS(Dataset):
     def __init__(self, config):
@@ -509,6 +406,17 @@ class ScanObjectNNTest(Dataset):
     def __len__(self):
         return len(self.data['cls'])
 
+def minkowski_scanobjectnn_collate_fn(list_data):
+    return {
+        "xyz": ME.utils.batched_coordinates([data["xyz"] for data in list_data], dtype=torch.float32),
+        "features": torch.cat([data["features"] for data in list_data], dim=0),
+        "img_feat": [data["img_feat"] for data in list_data],
+        "xyz_dense": torch.stack([data["xyz"] for data in list_data]).float(),
+        "features_dense": torch.stack([data["features"] for data in list_data]),
+        "name": [data["name"] for data in list_data],
+        "category": torch.tensor([data["category"] for data in list_data], dtype=torch.int32),
+    }
+
 
 def make_scanobjectnntest(config):
     dataset = ScanObjectNNTest(config)
@@ -516,7 +424,7 @@ def make_scanobjectnntest(config):
     data_loader = DataLoader(
         dataset, \
         num_workers=config.scanobjectnn.num_workers, \
-        collate_fn=minkowski_modelnet40_collate_fn, \
+        collate_fn=minkowski_scanobjectnn_collate_fn, \
         batch_size=config.scanobjectnn.test_batch_size, \
         pin_memory=True, \
         shuffle=False,
